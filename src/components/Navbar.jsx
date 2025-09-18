@@ -123,7 +123,7 @@ function Navbar() {
                   Login
                 </Link>
                 <Link
-                  to="/register"
+                  to="/signup"
                   className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors font-medium"
                 >
                   Get Started
@@ -205,7 +205,7 @@ function Navbar() {
                       Login
                     </Link>
                     <Link
-                      to="/register"
+                      to="/signup"
                       className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex justify-center mx-4"
                       onClick={() => setIsMenuOpen(false)}
                     >

@@ -7,6 +7,7 @@ import habitRoutes from './routes/habitRoutes.js';
 import streakRoutes from './routes/streakRoutes.js';
 import circleRoutes from './routes/circles.js';
 import messageRoutes from "./routes/messages.js";
+import chatbotRoutes from "./routes/chatbotRoutes.js";
 
 dotenv.config();
 const app = express();
@@ -21,6 +22,7 @@ app.use('/api/habits', habitRoutes);
 app.use('/api/streaks', streakRoutes);
 app.use('/api/circles', circleRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/chatbot", chatbotRoutes);
 
 // Connect to MongoDB
 mongoose

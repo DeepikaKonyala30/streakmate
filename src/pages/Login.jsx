@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useAuth } from "../context/AuthContext"; // adjust path
 
 const Login = () => {
+  const { login } = useAuth();   // ✅ get login function
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
@@ -11,19 +13,17 @@ const Login = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e) => {
+ const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
     try {
       const res = await axios.post("http://localhost:5000/api/auth/login", form);
-      localStorage.setItem("token", res.data.token);
-      console.log(res);
-      setTimeout(() => {
-        
-        navigate("/dashboard");
-      }, 500);
-      navigate("/dashboard");
+      const token = res.data.token;
+      if (token) {
+        const success = await login(token);  // ✅ sync context
+        if (success) navigate("/dashboard");
+      }
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");
     }
