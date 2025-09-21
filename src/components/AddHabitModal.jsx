@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { Flame, Book, Dumbbell, Coffee, FileText, Brain } from 'lucide-react';
 
 const iconOptions = [
-  { icon: <Flame />, label: 'Flame', value: 'Flame' },
-  { icon: <Book />, label: 'Book', value: 'Book' },
-  { icon: <Dumbbell />, label: 'Workout', value: 'Workout' },
-  { icon: <Coffee />, label: 'Coffee', value: 'Coffee' },
-  { icon: <FileText />, label: 'Notes', value: 'Notes' },
-  { icon: <Brain />, label: 'Mindfulness', value: 'Mindfulness' },
+  { icon: '💪', label: 'Gym', value: '💪' },
+  { icon: '📚', label: 'Study', value: '📚' },
+  { icon: '🧘', label: 'Meditation', value: '🧘' },
+-  { icon: '☕', label: 'Coffee', value: '☕' },
+  { icon: '📝', label: 'Notes', value: '📝' },
+  { icon: '🧠', label: 'Focus', value: '🧠' },
 ];
 
 const AddHabitModal = ({ open, onClose, onAdd }) => {
@@ -16,13 +15,20 @@ const AddHabitModal = ({ open, onClose, onAdd }) => {
     name: '',
     description: '',
     frequency: 'daily',
-    target: 1,
-    icon: iconOptions[0],
+    timeFrom: '',
+    timeTo: '',
+    icon: iconOptions[0].icon,
+    emoji: iconOptions[0].value,
   });
+  const [timeError, setTimeError] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setHabitData((prev) => ({ ...prev, [name]: value }));
+    if (name === 'timeFrom' || name === 'timeTo') {
+      // clear previous error when user updates times
+      setTimeError('');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -32,8 +38,10 @@ const AddHabitModal = ({ open, onClose, onAdd }) => {
       name: habitData.name,
       description: habitData.description,
       frequency: habitData.frequency,
-      target: Number(habitData.target),
-      icon: habitData.icon?.value || 'Flame',
+  timeFrom: habitData.timeFrom,
+  timeTo: habitData.timeTo,
+      icon: habitData.icon || '💪',
+      emoji: habitData.emoji || '💪',
       streak: 0,
       completedDates: [],
     };
@@ -43,28 +51,35 @@ const AddHabitModal = ({ open, onClose, onAdd }) => {
         throw new Error('Missing required fields: name, frequency');
     }
 
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token found. Please log in.');
+    // validate time range if both provided
+    if (habitData.timeFrom && habitData.timeTo) {
+      const [fh, fm] = habitData.timeFrom.split(':').map(Number);
+      const [th, tm] = habitData.timeTo.split(':').map(Number);
+      if (isNaN(fh) || isNaN(fm) || isNaN(th) || isNaN(tm)) {
+        setTimeError('Invalid time format');
+        return;
       }
-      const res = await axios.post('http://localhost:5000/api/habits', newHabit, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      onAdd(res.data);
+      if (fh > th || (fh === th && fm > tm)) {
+        setTimeError('Start time must be before or equal to end time');
+        return;
+      }
+    }
+
+    try {
+      // Delegate the server POST to the parent handler (Dashboard.handleAddHabit)
+      await onAdd(newHabit);
       setHabitData({
         name: '',
         description: '',
         frequency: 'daily',
-        target: 1,
+        timeFrom: '',
+        timeTo: '',
         icon: iconOptions[0],
       });
+      setTimeError('');
       onClose();
     } catch (err) {
-      console.error('Error adding habit:', err);
+      console.error('Error adding habit (parent handler):', err);
       alert(err.message || 'Failed to add habit. Please try again.');
     }
   };
@@ -72,18 +87,20 @@ const AddHabitModal = ({ open, onClose, onAdd }) => {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <h2 className="text-xl font-bold mb-4">Add New Habit</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl p-8 w-full max-w-lg shadow-elevated">
+        <h2 className="text-3xl font-semibold mb-6 text-center text-primary-800">
+          Add New Habit
+        </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <input
             name="name"
             placeholder="Habit name"
             value={habitData.name}
             onChange={handleChange}
             required
-            className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full p-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-4 focus:ring-primary-300 transition"
           />
 
           <textarea
@@ -91,44 +108,57 @@ const AddHabitModal = ({ open, onClose, onAdd }) => {
             placeholder="Description"
             value={habitData.description}
             onChange={handleChange}
-            className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full p-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-4 focus:ring-primary-300 transition"
             rows="4"
           />
 
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-3 flex-wrap justify-center">
             {iconOptions.map((option) => (
               <button
                 key={option.label}
                 type="button"
-                className={`p-2 border rounded ${
-                  habitData.icon.value === option.value
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white text-black border-gray-300'
-                } hover:bg-blue-100`}
-                onClick={() => setHabitData((prev) => ({ ...prev, icon: option }))}
+                className={`text-3xl p-4 border rounded-lg flex items-center justify-center transition ${
+                  habitData.emoji === option.value
+                    ? 'bg-primary-600 text-white shadow-md'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                }`}
+                onClick={() => setHabitData((prev) => ({ ...prev, icon: option.icon, emoji: option.value }))}
+                aria-label={`Select icon ${option.label}`}
               >
                 {option.icon}
               </button>
             ))}
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-4">
             <input
-              type="number"
-              name="target"
-              placeholder="Target Days"
-              value={habitData.target}
+              type="time"
+              name="timeFrom"
+              placeholder="Start time"
+              value={habitData.timeFrom}
               onChange={handleChange}
-              min={1}
-              required
-              className="w-1/2 p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-1/2 p-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-4 focus:ring-primary-300 transition"
             />
 
+            <input
+              type="time"
+              name="timeTo"
+              placeholder="End time (optional)"
+              value={habitData.timeTo}
+              onChange={handleChange}
+              className="w-1/2 p-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-4 focus:ring-primary-300 transition"
+            />
+          </div>
+          {timeError && (
+            <p className="text-sm text-danger-600 mt-1">{timeError}</p>
+          )}
+
+          <div className="mt-4">
             <select
               name="frequency"
               value={habitData.frequency}
               onChange={handleChange}
-              className="w-1/2 p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full p-4 bg-gray-100 text-gray-900 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-4 focus:ring-primary-300 transition"
             >
               <option value="daily">Daily</option>
               <option value="weekly">Weekly</option>
@@ -137,7 +167,7 @@ const AddHabitModal = ({ open, onClose, onAdd }) => {
 
           <button
             type="submit"
-            className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+            className="w-full bg-primary-600 text-white p-4 rounded-lg hover:bg-primary-700 transition-shadow shadow-md"
           >
             Add Habit
           </button>
@@ -145,7 +175,7 @@ const AddHabitModal = ({ open, onClose, onAdd }) => {
 
         <button
           onClick={onClose}
-          className="mt-4 text-sm text-gray-500 hover:text-gray-700"
+          className="mt-6 block w-full text-center text-sm text-primary-700 hover:text-primary-900 transition"
         >
           Close
         </button>

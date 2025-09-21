@@ -33,6 +33,7 @@ function Navbar() {
     ...(isAuthenticated ? [
       { to: '/dashboard', label: 'Dashboard' },
       { to: '/circles', label: 'Circles' },
+
     ] : []),
   ];
 

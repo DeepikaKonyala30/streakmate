@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 
-function MissedStreakModal({ open, onClose, habitId, onMotivation }) {
+function MissedStreakModal({ open, onClose, habitId, habitName, onMotivation }) {
   const [explanation, setExplanation] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -10,25 +10,14 @@ function MissedStreakModal({ open, onClose, habitId, onMotivation }) {
     e.preventDefault();
     setLoading(true);
     setError('');
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/streaks/missed', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ habitId, explanation }),
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message || 'Failed to get motivation');
-      onMotivation(data.aiResponse);
+  try {
+  await onMotivation(habitId, habitName, explanation);
       setExplanation('');
-      onClose();
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+      onClose();
     }
   };
 
