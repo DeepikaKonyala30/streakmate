@@ -21,8 +21,8 @@ const Signup = () => {
     setLoading(true);
 
     try {
-      const res = await axios.post("http://localhost:5000/api/auth/signup", form);
-      localStorage.setItem("token", res.data.token); 
+      const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/auth/signup`, form);
+      localStorage.setItem("token", res.data.token);
       navigate("/dashboard");
     } catch (err) {
       setError(err.response?.data?.message || "Something went wrong");
@@ -141,5 +141,3 @@ const Signup = () => {
 };
 
 export default Signup;
-
-

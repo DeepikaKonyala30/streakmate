@@ -1,39 +1,39 @@
-import { Routes, Route } from 'react-router-dom';
-import { useAuth } from './context/AuthContext'; // Update to './context/useAuth' if refactored
-import './App.css';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
-// import Register from './pages/Register';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import HabitCircles from './pages/HabitCircles';
+import HabitMap from './components/map/HabitMap';
 import NotFound from './pages/NotFound';
+import ChatBot from './pages/Chatbot';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
-import CircleChat from "./pages/CircleChat";
 
 function App() {
-  console.log('App.jsx: Rendering Routes');
+  const location = useLocation();
+  const hideChatbot = ["/login", "/signup"].includes(location.pathname);
+
   return (
-    <Routes>
-      {/* Public Routes */}
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
-      {/* <Route path="/register" element={<Register />} /> */}
+    <>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
 
-      {/* Protected Routes */}
-      <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/circles" element={<ProtectedRoute><HabitCircles /></ProtectedRoute>} />
-      </Route>
+        <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/circles" element={<HabitCircles />} />
+          <Route path="/map" element={<HabitMap />} />
+        </Route>
 
-      <Route path="/circles/:id/chat" element={<CircleChat />} />
-      {/* 404 Route */}
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+
+      {!hideChatbot && <ChatBot />}
+    </>
   );
 }
 

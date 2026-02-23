@@ -1,364 +1,201 @@
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { PlusCircle, Users, Lock, Globe } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import api from "../utils/api";
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { PlusCircle, Search, Users } from 'lucide-react';
+import axios from 'axios';
+import CircleList from '../components/circles/CircleList';
+import CreateCircleModal from '../components/circles/CreateCircleModal';
+import CircleDetails from '../components/circles/CircleDetails';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5003';
 
 function HabitCircles() {
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("myCircles");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState('myCircles'); // 'myCircles' or 'discover'
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedCircleId, setSelectedCircleId] = useState(null);
+
   const [myCircles, setMyCircles] = useState([]);
   const [discoverCircles, setDiscoverCircles] = useState([]);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [circleData, setCircleData] = useState({
-    name: "",
-    description: "",
-    privacy: "public",
-    category: "Other",
-    habits: [],
-  });
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All Categories");
+  const [loading, setLoading] = useState(true);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   useEffect(() => {
-    loadMyCircles();
-    loadDiscoverCircles();
+    fetchUserDataAndCircles();
   }, []);
 
-  useEffect(() => {
-    if (activeTab === "discover") loadDiscoverCircles();
-  }, [searchQuery, selectedCategory, activeTab]);
-
-  const loadMyCircles = async () => {
+  const fetchUserDataAndCircles = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const circles = await api.getMyCircles();
-      setMyCircles(circles);
-    } catch {
-      setError("Failed to load your circles");
-    } finally {
-      setLoading(false);
-    }
-  };
+      const token = localStorage.getItem('token');
+      if (!token) return;
 
-  const loadDiscoverCircles = async () => {
-    try {
-      setLoading(true);
-      const params = {};
-      if (searchQuery) params.search = searchQuery;
-      if (selectedCategory !== "All Categories") params.category = selectedCategory;
-      const response = await api.getCircles(params);
-      setDiscoverCircles(response.circles || response);
-    } catch {
-      setError("Failed to load circles");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleChange = (e) =>
-    setCircleData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-
-  const handleCreateCircle = async (e) => {
-    e.preventDefault();
-    setError("");
-    try {
-      setLoading(true);
-      const newCircle = await api.createCircle(circleData);
-      setMyCircles((prev) => [newCircle, ...prev]);
-      setCircleData({
-        name: "",
-        description: "",
-        privacy: "public",
-        category: "Other",
-        habits: [],
+      // 1. Get current user's ID
+      const userRes = await axios.get(`${API_URL}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-      setShowCreateModal(false);
-      setActiveTab("myCircles");
-    } catch (err) {
-      setError(err.message || "Failed to create circle");
+      const userId = userRes.data.user._id;
+      setCurrentUserId(userId);
+
+      // 2. Fetch all public circles
+      const circlesRes = await axios.get(`${API_URL}/api/circles`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const allCircles = circlesRes.data.circles;
+
+      // 3. Separate into Discover vs My Circles
+      // If the user's ID is in the members array, it's "myCircle"
+      const my = allCircles.filter(c => c.members.some(m => m._id === userId));
+      const discover = allCircles.filter(c => !c.members.some(m => m._id === userId));
+
+      setMyCircles(my);
+      setDiscoverCircles(discover);
+    } catch (error) {
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCircleCreated = (newCircle) => {
+    setMyCircles(prev => [newCircle, ...prev]);
+    setShowCreateModal(false);
   };
 
   const handleJoinCircle = async (circle) => {
-    const circleId = circle._id || circle.id;
     try {
-      setLoading(true);
-      if (circle.privacy === "private") {
-        await api.sendJoinRequest(circleId);
-        alert("Join request sent to the circle admin");
-      } else {
-        await api.joinCircle(circleId);
-      }
-      await loadMyCircles();
-      await loadDiscoverCircles();
-    } catch (err) {
-      setError(err.message || "Failed to join circle");
-    } finally {
-      setLoading(false);
+      const token = localStorage.getItem('token');
+      const res = await axios.post(`${API_URL}/api/circles/${circle._id}/join`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert(res.data.message);
+
+      // Re-fetch to update lists
+      fetchUserDataAndCircles();
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error joining circle');
     }
   };
 
-  const handleLeaveCircle = async (circleId) => {
-    const id = circleId?._id || circleId;
-    if (!window.confirm("Are you sure you want to leave this circle?")) return;
-    try {
-      setLoading(true);
-      await api.leaveCircle(id);
-      setMyCircles((prev) => prev.filter((c) => (c._id || c.id) !== id));
-      await loadDiscoverCircles();
-    } catch {
-      setError("Failed to leave circle");
-    } finally {
-      setLoading(false);
-    }
+  // Filter lists based on search and category
+  const filterList = (list) => {
+    return list.filter(c => {
+      const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (c.description && c.description.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchesCategory = categoryFilter ? c.category === categoryFilter : true;
+      return matchesSearch && matchesCategory;
+    });
   };
-
-  const handleDeleteCircle = async (circleId) => {
-    const id = circleId?._id || circleId;
-    if (!window.confirm("Are you sure you want to delete this circle?")) return;
-    try {
-      setLoading(true);
-      await api.deleteCircle(id);
-      setMyCircles((prev) => prev.filter((c) => (c._id || c.id) !== id));
-      setDiscoverCircles((prev) => prev.filter((c) => (c._id || c.id) !== id));
-    } catch (err) {
-      setError(err.message || "Failed to delete circle");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const CircleCard = ({ circle }) => (
-    <motion.div
-      className="bg-white rounded-xl shadow-soft overflow-hidden flex flex-col"
-      whileHover={{ y: -4, boxShadow: "0 6px 20px rgba(0,0,0,0.1)" }}
-      transition={{ duration: 0.3 }}
-    >
-      <div className="h-32 overflow-hidden">
-        <img
-          src={circle.image}
-          alt={circle.name}
-          className="w-full h-full object-cover"
-          loading="lazy"
-          onError={(e) =>
-            (e.target.src =
-              "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=800&q=80")
-          }
-        />
-      </div>
-      <div className="p-4 flex-1 flex flex-col">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="font-display font-semibold text-base truncate">
-            {circle.name}
-          </h3>
-          {circle.privacy === "private" ? (
-            <Lock size={14} className="text-neutral-500" />
-          ) : (
-            <Globe size={14} className="text-neutral-500" />
-          )}
-        </div>
-        <div className="flex items-center text-neutral-600 mb-3">
-          <Users size={14} className="mr-1" />
-          <span className="text-xs">{circle.members} members</span>
-        </div>
-        {circle.category && (
-          <div className="text-xs text-neutral-500 mb-2">
-            Category: {circle.category}
-          </div>
-        )}
-        <p className="text-xs text-neutral-500 mb-4 line-clamp-2">
-          {circle.habits?.length > 0
-            ? circle.habits.join(", ")
-            : circle.description || "No habits specified"}
-        </p>
-        <div className="mt-auto flex gap-2">
-          {activeTab === "myCircles" ? (
-            <>
-              <button
-                onClick={() => navigate(`/circles/${circle._id || circle.id}/chat`)}
-                className="flex-1 py-2 px-3 rounded-lg font-medium text-sm bg-neutral-100 text-neutral-700 hover:bg-neutral-200 transition-colors"
-              >
-                View Circle
-              </button>
-              {!circle.isCreator && (
-                <button
-                  onClick={() => handleLeaveCircle(circle._id || circle.id)}
-                  className="py-2 px-3 rounded-lg font-medium text-sm text-red-600 hover:bg-red-50 transition-colors"
-                  disabled={loading}
-                >
-                  Leave
-                </button>
-              )}
-            </>
-          ) : (
-            <button
-              onClick={() => handleJoinCircle(circle)}
-              className="w-full py-2 px-4 rounded-lg font-medium text-sm bg-primary-600 text-white hover:bg-primary-700 transition-colors disabled:bg-primary-300"
-              disabled={loading || circle.isMember}
-            >
-              {circle.isMember
-                ? "Already Joined"
-                : circle.privacy === "private"
-                ? "Send Join Request"
-                : "Join Circle"}
-            </button>
-          )}
-          {circle.isCreator && (
-            <button
-              onClick={() => handleDeleteCircle(circle._id || circle.id)}
-              className="py-2 px-3 rounded-lg font-medium text-sm text-red-600 hover:bg-red-50 transition-colors"
-              disabled={loading}
-            >
-              Delete
-            </button>
-          )}
-        </div>
-      </div>
-    </motion.div>
-  );
-
-  const categories = [
-    "All Categories",
-    "Fitness",
-    "Mindfulness",
-    "Learning",
-    "Productivity",
-    "Health",
-    "Other",
-  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-neutral-50 pt-16 pb-8">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        {error && <div className="text-red-500 mb-4">{error}</div>}
-        {/* Tabs */}
-        <div className="flex gap-4 mb-4">
-          <button
-            onClick={() => setActiveTab("myCircles")}
-            className={`px-4 py-2 rounded-lg font-medium ${
-              activeTab === "myCircles"
-                ? "bg-primary-600 text-white"
-                : "bg-white text-neutral-700"
-            }`}
-          >
-            My Circles
-          </button>
-          <button
-            onClick={() => setActiveTab("discover")}
-            className={`px-4 py-2 rounded-lg font-medium ${
-              activeTab === "discover"
-                ? "bg-primary-600 text-white"
-                : "bg-white text-neutral-700"
-            }`}
-          >
-            Discover
-          </button>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="ml-auto flex items-center gap-1 px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
-          >
-            <PlusCircle size={16} /> Create Circle
-          </button>
-        </div>
-        {/* Category Filter & Search */}
-        {activeTab === "discover" && (
-          <div className="flex gap-3 mb-4">
-            <input
-              type="text"
-              placeholder="Search circles…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 px-3 py-2 border rounded-lg"
-            />
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-3 py-2 border rounded-lg"
-            >
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        {/* Circle Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-          {(activeTab === "myCircles" ? myCircles : discoverCircles).map(
-            (circle) => (
-              <CircleCard key={circle._id || circle.id} circle={circle} />
-            )
-          )}
-        </div>
-        {/* Create Modal */}
-        {showCreateModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg w-full max-w-md">
-              <h2 className="text-xl font-semibold mb-4">Create Circle</h2>
-              <form onSubmit={handleCreateCircle} className="flex flex-col gap-3">
-                <input
-                  type="text"
-                  name="name"
-                  placeholder="Circle Name"
-                  value={circleData.name}
-                  onChange={handleChange}
-                  required
-                  className="px-3 py-2 border rounded-lg"
-                />
-                <input
-                  type="text"
-                  name="description"
-                  placeholder="Description"
-                  value={circleData.description}
-                  onChange={handleChange}
-                  className="px-3 py-2 border rounded-lg"
-                />
-                <select
-                  name="privacy"
-                  value={circleData.privacy}
-                  onChange={handleChange}
-                  className="px-3 py-2 border rounded-lg"
-                >
-                  <option value="public">Public</option>
-                  <option value="private">Private</option>
-                </select>
-                <select
-                  name="category"
-                  value={circleData.category}
-                  onChange={handleChange}
-                  className="px-3 py-2 border rounded-lg"
-                >
-                  {categories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-                <div className="flex justify-end gap-2 mt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateModal(false)}
-                    className="px-4 py-2 rounded-lg bg-neutral-200 hover:bg-neutral-300"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
-                  >
-                    Create
-                  </button>
+
+        <AnimatePresence mode="wait">
+          {selectedCircleId ? (
+            <motion.div key="details" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <CircleDetails
+                circleId={selectedCircleId}
+                currentUserId={currentUserId}
+                onBack={() => {
+                  setSelectedCircleId(null);
+                  fetchUserDataAndCircles(); // refresh counts
+                }}
+              />
+            </motion.div>
+          ) : (
+            <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8 pt-4">
+                <div className="text-center sm:text-left">
+                  <h1 className="text-3xl font-display font-bold text-neutral-900">
+                    Habit Circles
+                  </h1>
+                  <p className="text-neutral-600">Connect and grow with accountability groups</p>
                 </div>
-              </form>
-            </div>
-          </div>
-        )}
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="bg-primary-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-primary-700 hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                >
+                  <PlusCircle size={20} />
+                  <span>Create Circle</span>
+                </button>
+              </div>
+
+              {/* Filters */}
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-neutral-100 flex flex-col sm:flex-row gap-3 mb-8">
+                <div className="relative flex-1">
+                  <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+                  <input
+                    type="text"
+                    placeholder="Search circles by name or description..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border-none bg-neutral-50 rounded-lg focus:ring-2 focus:ring-primary-300 outline-none transition-shadow"
+                  />
+                </div>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="px-4 py-2 border-none bg-neutral-50 rounded-lg focus:ring-2 focus:ring-primary-300 outline-none transition-shadow"
+                >
+                  <option value="">All Categories</option>
+                  <option value="Fitness">Fitness</option>
+                  <option value="Study">Study</option>
+                  <option value="Meditation">Meditation</option>
+                  <option value="Coding">Coding</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex gap-6 border-b border-neutral-200 mb-6">
+                <button
+                  className={`pb-3 px-2 font-medium text-sm transition-colors relative ${activeTab === 'myCircles' ? 'text-primary-600' : 'text-neutral-500 hover:text-neutral-700'
+                    }`}
+                  onClick={() => setActiveTab('myCircles')}
+                >
+                  My Circles ({myCircles.length})
+                  {activeTab === 'myCircles' && <motion.div layoutId="TabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600" />}
+                </button>
+                <button
+                  className={`pb-3 px-2 font-medium text-sm transition-colors relative ${activeTab === 'discover' ? 'text-primary-600' : 'text-neutral-500 hover:text-neutral-700'
+                    }`}
+                  onClick={() => setActiveTab('discover')}
+                >
+                  Discover ({discoverCircles.length})
+                  {activeTab === 'discover' && <motion.div layoutId="TabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600" />}
+                </button>
+              </div>
+
+              {/* Lists */}
+              {loading ? (
+                <div className="text-center py-12 text-neutral-500">Loading circles...</div>
+              ) : (
+                <CircleList
+                  circles={filterList(activeTab === 'myCircles' ? myCircles : discoverCircles)}
+                  activeTab={activeTab}
+                  onJoin={handleJoinCircle}
+                  onOpen={(circle) => setSelectedCircleId(circle._id)}
+                  currentUserId={currentUserId}
+                />
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Modals */}
+        <AnimatePresence>
+          {showCreateModal && (
+            <CreateCircleModal
+              onClose={() => setShowCreateModal(false)}
+              onCircleCreated={handleCircleCreated}
+            />
+          )}
+        </AnimatePresence>
+
       </div>
     </div>
   );

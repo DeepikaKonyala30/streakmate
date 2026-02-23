@@ -33,10 +33,16 @@ router.post('/missed', authMiddleware, async (req, res) => {
     }
     // Call AI API (placeholder)
     const aiResponse = await getAIMotivation(explanation);
-    // Save to DB
-    const missed = new MissedStreak({ userId, habitId, habitName: habit.name, explanation, aiResponse });
+    // Save only user's explanation to DB
+    const missed = new MissedStreak({
+      user: userId,
+      habitId,
+      habitName: habit.name,
+      userExplanation: explanation,
+      date: new Date(),
+    });
     await missed.save();
-    res.json({ success: true, aiResponse });
+    res.json({ success: true, aiResponse, entry: missed });
   } catch (err) {
     console.error('Missed streak error:', err);
     res.status(500).json({ success: false, message: 'Failed to process missed streak.' });
@@ -48,7 +54,7 @@ router.get('/missed/:habitId', authMiddleware, async (req, res) => {
   try {
     const { habitId } = req.params;
     const userId = req.user.id;
-    const history = await MissedStreak.find({ userId, habitId }).sort({ createdAt: -1 });
+  const history = await MissedStreak.find({ user: userId, habitId }).sort({ date: -1 });
     res.json({ success: true, history });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to fetch missed streak history.' });
@@ -59,7 +65,7 @@ router.get('/missed/:habitId', authMiddleware, async (req, res) => {
 router.get('/missed', authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
-    const history = await MissedStreak.find({ userId }).sort({ createdAt: -1 });
+  const history = await MissedStreak.find({ user: userId }).sort({ date: -1 });
     res.json({ success: true, history });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to fetch missed streak history.' });

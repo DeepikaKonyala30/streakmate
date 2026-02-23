@@ -12,15 +12,30 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "axios": "^1.12.1",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
     "dotenv": "^16.6.1",
-    "express": "^5.1.0",
+    "express": "^4.21.2",
+    "framer-motion": "^12.23.12",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.16.1"
+    "lucide-react": "^0.544.0",
+    "mongoose": "^8.18.1",
+    "node-cron": "^4.2.1",
+    "node-fetch": "^3.3.2",
+    "openai": "^5.20.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-hot-toast": "^2.6.0",
+    "react-router-dom": "^7.9.1",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "autoprefixer": "^10.4.21",
+    "nodemon": "^3.1.10",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17"
   }
 }

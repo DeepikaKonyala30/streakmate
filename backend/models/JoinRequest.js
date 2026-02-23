@@ -1,7 +1,30 @@
+// backend/models/JoinRequest.js
 import mongoose from "mongoose";
+
 const joinRequestSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  circleId: { type: mongoose.Schema.Types.ObjectId, ref: "Circle", required: true },
-  status: { type: String, enum: ["pending", "approved", "declined"], default: "pending" },
-}, { timestamps: true });
-export default mongoose.model("JoinRequest", joinRequestSchema);
+    circleId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Circle",
+        required: true,
+    },
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+    },
+    status: {
+        type: String,
+        enum: ["pending", "accepted", "rejected"],
+        default: "pending",
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now,
+    },
+});
+
+// Prevent duplicate join requests for the same user & circle
+joinRequestSchema.index({ circleId: 1, userId: 1 }, { unique: true });
+
+// Prevent OverwriteModelError when using ES modules or hot reload
+export default mongoose.models.JoinRequest || mongoose.model("JoinRequest", joinRequestSchema);
