@@ -1,5 +1,5 @@
 # 🚀 StreakMate  
-### A Social Habit Tracking Platform with Emotional Awareness  
+### A Social Habit Tracking Platform Built for Consistency & Community
 **Live Demo:** https://streakmate.vercel.app
 
 StreakMate began with a simple observation:  
@@ -18,13 +18,11 @@ It builds habits the way people actually work — with emotions, communities, an
 ## 🌟 Why StreakMate Exists
 
 Traditional habit apps:
-- Punish missed days aggressively  
-- Ignore emotional state  
+- Punish missed days aggressively   
 - Focus only on solo progress  
 
 StreakMate aims for something closer to real life:
 - Smarter streak logic  
-- Emotion-aware habit logging  
 - Community motivation through circles  
 
 Consistency becomes more than counters. It becomes connection.
@@ -51,11 +49,6 @@ Consistency becomes more than counters. It becomes connection.
 - Map-based circle visualization  
 - Local and global discovery  
 - Place-aware community building  
-
-### 😊 Emotion Logging  
-- Daily emotion tracking  
-- Emotions linked to habit activity  
-- Backend ready for future insight models  
 
 ### 🔐 Authentication & Security  
 - Middleware-protected routes  
@@ -135,3 +128,4 @@ A structure focused on clarity, scalability, and separation of concerns.
 
 If you love building systems that respect human behavior instead of fighting it, StreakMate is a solid starting point.  
 Feel free to explore, test, or build on top of it.
+
